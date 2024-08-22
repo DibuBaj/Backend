@@ -29,12 +29,20 @@ const userSchema = new Schema(
             type: String,
             required: true, //cloudnary url
         },
-        likedProduct: [
+        avatarPublicId:{
+            type: String,
+            required: true,
+        },
+        likedRecipe: [
             {
                 type: Schema.Types.ObjectId,
-                ref: 'Product'
+                ref: 'Recipe'
             }
         ],
+        userType:{
+            type: String,
+            enum: ['admin', 'chef','user'],
+        },
         password:{
             type: String,
             required: [true, 'Password is required']
@@ -64,7 +72,8 @@ userSchema.methods.generateAccessToken = function () {
             _id: this._id,
             email: this.email,
             username: this.username,
-            fullName: this.fullName
+            fullName: this.fullName,
+            userType: this.userType
         },
         process.env.ACCESS_TOKEN_SECRET,
         {

@@ -1,7 +1,7 @@
 import mongoose,{Schema} from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
-const productSchema = new Schema(
+const recipeSchema = new Schema(
     {
         name:{
             type:String,
@@ -11,21 +11,27 @@ const productSchema = new Schema(
             type:String, //cloudnary url
             required:true
         },
+        pictureId:{
+            type:String, 
+        },
         description:{
             type:String,
             required:true,
         },
-        rating:{
-            type:Number,
-            default: 0,
+        ingredients:{
+            type:Array,
             required: true
         },
-        productOwner:{
+        instructions:{
+            type:Array,
+            required: true
+        },
+        recipeOwner:{
             type: Schema.Types.ObjectId,
             ref: 'User',
         }
     },{timestamps: true})
 
-productSchema(mongooseAggregatePaginate)
+recipeSchema.plugin(mongooseAggregatePaginate)
 
-export const Product = mongoose.model('Product',productSchema)
+export const Recipe = mongoose.model('Recipe',recipeSchema)
