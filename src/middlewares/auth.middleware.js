@@ -3,7 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
 
-export const verifyJWT = asyncHandler(async(req,_,next) =>{
+const verifyJWT = asyncHandler(async(req,_,next) =>{
     try {
         const token = await req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ","")
         
@@ -25,3 +25,13 @@ export const verifyJWT = asyncHandler(async(req,_,next) =>{
         throw new ApiError(401, error?.message || "Invalid access token")
     }
 }) 
+
+const verifyUser  = asyncHandler(async(req,_,next) =>{
+    
+    if(req.user?.userType !== "chef" && req.user?.userType !== "admin"){
+        throw new ApiError(403, "You are not authorized to access this route.")
+    }
+    next();
+})
+
+export {verifyJWT ,verifyUser}

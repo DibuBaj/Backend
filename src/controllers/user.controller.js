@@ -237,23 +237,21 @@ const updateUserDetails = asyncHandler(async (req, res) => {
 
   const updateFields = {};
 
-  if (username) {
-    updateFields.username = username;
-  }
+  username && (updateFields.username =username);
+  fullName && (updateFields.fullName =fullName);
+  userType && (updateFields.userType =userType);
 
-  if (fullName) {
-    updateFields.fullName = fullName;
-  }
-
-  if (userType) {
-    updateFields.userType = userType;
-  }
 
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     { $set: updateFields },
     { new: true }
   ).select("-password");
+
+
+  if(!user){
+    throw new ApiError(500,"Updating detail failed")
+  }
 
   return res
     .status(200)
@@ -345,6 +343,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
         fullName: 1,
         username: 1,
         avatar: 1,
+        userType:1,
         email: 1,
         followersCount: 1,
         followedToCount: 1,
@@ -367,18 +366,28 @@ const getUserProfile = asyncHandler(async (req, res) => {
 });
 
 const deleteUser = asyncHandler(async(req,res) =>{
-  const { username } = await req.params
+  const { username } =  req.params 
+  
 
-  if(!username){
-    throw new ApiError(400,"Username Missing")
+  if(username !== req.user?.username){
+    throw new ApiError(403, "Unauthorized Request");
   }
 
+
   const user =await User.findOneAndDelete({username : username})
+
 
   if(!user){
     throw new ApiError(400,"User does not exist")
   }
   
+  const avatarPublicId = user.avatarPublicId;
+
+  const avatar = uploadOnCloudinary(null,avatarPublicId);
+
+  if(!avatar){
+    throw new ApiError(500,"Fail to delete avatar")
+  }
   
   return res.status(200)
   .json(new ApiResponse(200,[],'User Deleted Successfully.'))

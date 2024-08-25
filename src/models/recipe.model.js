@@ -18,6 +18,11 @@ const recipeSchema = new Schema(
             type:String,
             required:true,
         },
+        category:{
+            type:String,
+            required:true,
+            enum: ['breakfast','lunch','snack','dinner']
+        },
         ingredients:{
             type:Array,
             required: true
@@ -29,7 +34,17 @@ const recipeSchema = new Schema(
         recipeOwner:{
             type: Schema.Types.ObjectId,
             ref: 'User',
-        }
+            required:true
+        },
+        recipeOwnerName:{
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+        },
+        likedBy:{
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+           
+        },
     },{timestamps: true})
 
 recipeSchema.plugin(mongooseAggregatePaginate)

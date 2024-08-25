@@ -11,9 +11,6 @@ cloudinary.config({
 
 const uploadOnCloudinary = async (localFilePath, oldPublicId = null) => {
   try {
-    if (!localFilePath) return null;
-
-   
     if (oldPublicId) {
       try {
         await cloudinary.uploader.destroy(oldPublicId);
@@ -21,6 +18,8 @@ const uploadOnCloudinary = async (localFilePath, oldPublicId = null) => {
         console.error("Error deleting old image on Cloudinary:", deleteError);
       }
     }
+
+    if (!localFilePath) return null;
 
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "image",
