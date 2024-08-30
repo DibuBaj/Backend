@@ -289,7 +289,6 @@ const updateAvatarImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Avatar updated successfully"));
 });
 
-
 const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
 
@@ -297,41 +296,35 @@ const getUserProfile = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Username Missing");
   }
 
-  const profile = await User.aggregate([
+  const userProfile = await User.aggregate([
     {
       $match: {
-        username: username?.toLowerCase(),
+        username: username.toLowerCase(), 
       },
     },
     {
       $lookup: {
-        from: "followings",
-        localField: "_id",
-        foreignField: "profile",
-        as: "followers",
+        from: "follows",
+        localField: "_id", 
+        foreignField: "profile", 
+        as: "followers", 
       },
     },
     {
       $lookup: {
-        from: "followings",
-        localField: "_id",
-        foreignField: "follower",
-        as: "followedTo",
+        from: "follows",
+        localField: "_id", 
+        foreignField: "follower", 
+        as: "following", 
       },
     },
     {
       $addFields: {
-        followersCount: {
-          $size: "$followers",
-        },
-        followedToCount: {
-          $size: "$followedTo",
-        },
-        isFollowing: {
+        totalFollowers: { $size: "$followers" }, 
+        totalFollowing: { $size: "$following" }, 
+        isCurrentUserFollowing: { 
           $cond: {
-            if: {
-              $in: [req.user?._id, "$followers.follower"],
-            },
+            if: { $in: [mongoose.Types.ObjectId(req.user?._id), "$followers.follower"] },
             then: true,
             else: false,
           },
@@ -343,38 +336,33 @@ const getUserProfile = asyncHandler(async (req, res) => {
         fullName: 1,
         username: 1,
         avatar: 1,
-        userType:1,
+        userType: 1,
         email: 1,
-        followersCount: 1,
-        followedToCount: 1,
-        isFollowing: 1,
+        totalFollowers: 1,  
+        totalFollowing: 1, 
+        isCurrentUserFollowing: 1,  
       },
     },
   ]);
 
-  // console.log(profile);
   
-  if (!profile?.length) {
+  
+  if (!userProfile?.length) {
     throw new ApiError(404, "Profile does not exist.");
   }
   
   return res
   .status(200)
   .json(
-    new ApiResponse(200, profile[0], "User profile fetched successfully.")
+    new ApiResponse(200, userProfile[0], "User profile fetched successfully.")
   );
 });
 
 const deleteUser = asyncHandler(async(req,res) =>{
-  const { username } =  req.params 
+  const { _id } =  req.user?._id
   
 
-  if(username !== req.user?.username){
-    throw new ApiError(403, "Unauthorized Request");
-  }
-
-
-  const user =await User.findOneAndDelete({username : username})
+  const user =await User.findByIdAndDelete(_id)
 
 
   if(!user){
@@ -383,65 +371,15 @@ const deleteUser = asyncHandler(async(req,res) =>{
   
   const avatarPublicId = user.avatarPublicId;
 
-  const avatar = uploadOnCloudinary(null,avatarPublicId);
+  uploadOnCloudinary(null,avatarPublicId);
 
-  if(!avatar){
-    throw new ApiError(500,"Fail to delete avatar")
-  }
+  
+  
   
   return res.status(200)
-  .json(new ApiResponse(200,[],'User Deleted Successfully.'))
+  .json(new ApiResponse(200,[],"User Deleted Successfully."))
 })
 
-const getLikedRecipe = asyncHandler(async(req, res) => {
-  const user = await User.aggregate([
-      {
-          $match: {
-              _id: new mongoose.Types.ObjectId(req.user._id)
-          }
-      },
-      {
-          $lookup: {
-              from: "recipes",
-              localField: "likedRecipe",
-              foreignField: "_id",
-              as: "likedRecipe",
-              pipeline: [
-                  {
-                      $lookup: {
-                          from: "users",
-                          localField: "recipeOwner",
-                          foreignField: "_id",
-                          as: "recipeOwner",
-                          pipeline: [
-                              {
-                                  $project: {
-                                      fullName: 1,
-                                      username: 1,
-                                      avatar: 1
-                                  }
-                              }
-                          ]
-                      }
-                  },
-                  {
-                      $addFields:{
-                          recipeOwner:{
-                              $first: "$recipeOwner"
-                          }
-                      }
-                  }
-              ]
-          }
-      }
-  ])
-
-  return res
-  .status(200)
-  .json(
-      new ApiResponse(200, user[0].likedRecipe ,"Liked Recipe fetched successfully")
-  )
-})
 
 
 
@@ -456,5 +394,4 @@ export {
   updateAvatarImage,
   getUserProfile,
   deleteUser,
-  getLikedRecipe
 };

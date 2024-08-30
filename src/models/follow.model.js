@@ -1,6 +1,6 @@
 import mongoose,{Schema} from "mongoose";
 
-const followingSchema = new Schema({
+const followSchema = new Schema({
     follower:{
         type: Schema.Types.ObjectId,
         ref: "User"
@@ -11,4 +11,4 @@ const followingSchema = new Schema({
     }    
 },{timestamps: true})
 
-export const Following = mongoose.model('Following',followingSchema)
+export const Follow = mongoose.model('Follow',followSchema)

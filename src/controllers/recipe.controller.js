@@ -10,8 +10,13 @@ const createRecipe = asyncHandler(async (req, res) => {
 
   let { name, description, category, ingredients, instructions } = req.body;
 
+
   if ([name, description, category].some((field) => field?.trim() === "")) {
     throw new ApiError(400, "All the fields are required.");
+  }
+
+  if (!["breakfast", "lunch", "snack", "dinner"].includes(category)) {
+    throw new ApiError(400, "Invalid category");
   }
 
   try {
@@ -44,16 +49,16 @@ const createRecipe = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Instructions should be array of string.");
   }
 
-  const picLocalPath = req.file?.path;
+  const imageLocalPath = req.file?.path;
 
-  if (!picLocalPath) {
-    throw new ApiError(400, "Picture is required.");
+  if (!imageLocalPath) {
+    throw new ApiError(400, "Image is required.");
   }
 
-  const picture = await uploadOnCloudinary(picLocalPath);
+  const image = await uploadOnCloudinary(imageLocalPath);
 
-  if (!picture) {
-    throw new ApiError(400, "Failed to upload picture.");
+  if (!image) {
+    throw new ApiError(400, "Failed to upload image.");
   }
 
   const recipe = await Recipe.create({
@@ -62,8 +67,8 @@ const createRecipe = asyncHandler(async (req, res) => {
     category,
     ingredients,
     instructions,
-    picture: picture.url,
-    pictureId: picture.public_id,
+    image: image.url,
+    imageId: image.public_id,
     recipeOwner: _id,
   });
 
@@ -76,28 +81,36 @@ const createRecipe = asyncHandler(async (req, res) => {
   return res
     .status(201)
     .json(new ApiResponse(201, recipeCreate, "Recipe Created Successfully."));
-  return;
+  
 });
 
 const updateRecipeDetail = asyncHandler(async (req, res) => {
   const { name, description, category } = req.body;
 
   const { recipeId } = req.params;
+
+  if (!recipeId?.trim()) {
+    throw new ApiError(400, "Recipe Id Missing");
+  }
+  
   const {_id} = req.user;
 
+  if (!_id) {
+    throw new ApiError(401, "Unauthorized request");
+  }
   
   if (!recipeId) {
     throw new ApiError(400, "Recipe ID is required.");
   }
 
-  
-  if (!_id) {
-    throw new ApiError(401, "Unauthorized request");
-  }
-
-
   if (!(name || description || category)) {
     throw new ApiError(400, "At least one field is required.");
+  }
+
+  if(category){
+    if (!["breakfast", "lunch", "snack", "dinner"].includes(category)) {
+      throw new ApiError(400, "Invalid category");
+    }
   }
 
   const updateFields = {};
@@ -123,12 +136,253 @@ const updateRecipeDetail = asyncHandler(async (req, res) => {
 
 });
 
-const updateRecipeImage = asyncHandler(async (req, res) => {});
+const updateRecipeImage = asyncHandler(async (req, res) => {
+  
+  const { recipeId } = req.params;
+  const {_id} = req.user;
 
-const deleteRecipe = asyncHandler(async (req, res) => {});
+  if (!recipeId?.trim()) {
+    throw new ApiError(400, "Recipe Id Missing");
+  }
 
-const getAllRecipe = asyncHandler(async (req, res) => {});
+  if (!_id) {
+    throw new ApiError(401, "Unauthorized request");
+  }
 
-const getLikedBy = asyncHandler(async (req, res) => {});
+  const recipe = await Recipe.findOne(
+    {_id:recipeId ,recipeOwner:_id}
+  )
 
-export { createRecipe ,updateRecipeDetail };
+  if(!recipe){
+    throw new ApiError(404, "Recipe not found or unauthorized request.");
+  }
+
+  const newRecipeImage = req.file?.path;
+  
+  if(!newRecipeImage){
+    throw new ApiError(400,"Recipe Image Required.")
+  }
+
+  const oldRecipeImageId = recipe.imageId;
+
+  const image = await uploadOnCloudinary(newRecipeImage,oldRecipeImageId);
+
+  if(!image || !image.secure_url){
+    throw new ApiError(500,"Failed to upload image.")
+  }
+
+  recipe.image = image.secure_url;
+  recipe.imageId = image.public_id;
+
+  await recipe.save();  
+
+  return res.status(200)
+  .json(new ApiResponse(200,recipe,"Image upload successfully."))
+});
+
+const updateRecipeIngredientAndInstruction = asyncHandler(async (req, res) => {
+  const { ingredients, instructions, index } = req.body;
+  const { recipeId } = req.params;
+
+  if (!recipeId) {
+    throw new ApiError(400, "Recipe ID is missing.");
+  }
+
+  const { _id } = req.user;
+
+  if (!_id) {
+    throw new ApiError(401, "Unauthorized request.");
+  }
+
+  if(!index){
+    const recipe = await Recipe.findOne({_id:recipeId, recipeOwner:_id})
+
+    if(!recipe){
+      throw new ApiError(400,"Recipe not found or unauthorized request.")
+    }
+    if(ingredients){
+      recipe.ingredients.push(ingredients)
+    }
+  
+    if(instructions){
+      recipe.instructions.push(instructions)
+    }
+
+    await recipe.save();
+    return res
+    .status(200)
+    .json(new ApiResponse(200, recipe, "Recipe data added successfully."));
+  }
+
+  if (typeof index !== "number" || index < 0) {
+    throw new ApiError(400, "Index should be a positive number.");
+  }
+
+  if(!(ingredients|| instructions)){
+    throw new ApiError(400,"Any one field is required.")
+  }
+
+  const recipe = await Recipe.findOne({_id:recipeId, recipeOwner:_id})
+  
+
+  if (!recipe) {
+    throw new ApiError(404, "Recipe not found or you are not authorized to update it.");
+  }
+
+  if(ingredients){
+    recipe.ingredients[index] = ingredients
+  }
+
+  if(instructions){
+    recipe.instructions[index] = instructions
+  }
+
+  await recipe.save();
+  
+  return res
+    .status(200)
+    .json(new ApiResponse(200, recipe, "Recipe updated successfully."));
+});
+
+const deleteRecipeIngredientAndInstruction = asyncHandler(async (req, res) => {
+  const { ingredients, instructions, index } = req.body;
+  const { recipeId } = req.params;
+
+  if (!recipeId) {
+    throw new ApiError(400, "Recipe ID is missing.");
+  }
+
+  const { _id } = req.user;
+
+  if (!_id) {
+    throw new ApiError(401, "Unauthorized request.");
+  }
+
+
+  if (typeof index !== "number" || index < 0) {
+    throw new ApiError(400, "Index should be a positive number.");
+  }
+
+  if(!(ingredients|| instructions)){
+    throw new ApiError(400,"Any one field is required.")
+  }
+
+  const recipe = await Recipe.findOne({_id:recipeId, recipeOwner:_id})
+  
+
+  if (!recipe) {
+    throw new ApiError(404, "Recipe not found or you are not authorized to update it.");
+  }
+
+  if(ingredients){
+    recipe.ingredients.splice(index,1) 
+  }
+
+  if(instructions){
+    recipe.instructions.splice(index,1)
+  }
+
+  await recipe.save();
+  
+  return res
+    .status(200)
+    .json(new ApiResponse(200, recipe, "Recipe updated successfully."));
+});
+
+const getRecipeById = asyncHandler(async (req,res) =>{
+  const { recipeId } = req.params;
+
+  if (!recipeId?.trim()) {
+    throw new ApiError(400, "Recipe Id Missing");
+  }
+
+  const recipe = await Recipe.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(recipeId),
+      },
+    },
+    {
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "recipe",
+        as: "likesInfo",
+      },
+    },
+    {
+      $addFields: {
+        totalLikes: { $size:
+           { $ifNull: [
+            {$arrayElemAt:
+              [ "$likesInfo.likedBy",0] 
+            },[]
+          ] 
+          } 
+        },
+      },
+    },
+    {
+      $project: {
+        name: 1,
+        description: 1,
+        category: 1,
+        image: 1,
+        ingredients: 1,
+        instructions: 1,
+        totalLikes: 1,
+      },
+    },
+  ]);
+
+  if(!recipe || recipe.length == 0){
+    throw new ApiError(404, "Recipe Not Found");
+  }
+
+  return res.status(200)
+  .json(new ApiResponse(200,recipe[0],"Recipe detail fetched successfully."))
+})
+
+const getAllRecipe = asyncHandler(async (req, res) => {
+   const query = req.query
+
+   const recipe = await Recipe.find(query)
+
+   if(!recipe){
+    throw new ApiError(400,"No Recipe Found.")
+   }
+
+   return res.status(200)
+   .json(new ApiResponse(200,recipe,"Data Fetched Successfully."))
+});
+
+const deleteRecipe = asyncHandler(async (req, res) => {
+  const { recipeId } = req.params;
+  const {_id} = req.user;
+
+  if (!recipeId?.trim()) {
+    throw new ApiError(400, "Recipe Id Missing");
+  }
+
+  if (!_id) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
+  const recipe = await Recipe.findOneAndDelete(
+    {_id:recipeId ,recipeOwner:_id}
+  )
+
+  if(!recipe){
+    throw new ApiError(404, "Recipe not found or unauthorized request.");
+  }
+
+  const recipeImageId = recipe.imageId;
+
+  await uploadOnCloudinary(null,recipeImageId)
+
+
+  return res.status(200)
+  .json(new ApiResponse(200,[],"Recipe deleted successfully."))
+});
+
+export { createRecipe ,updateRecipeDetail,updateRecipeImage,updateRecipeIngredientAndInstruction ,deleteRecipeIngredientAndInstruction ,getRecipeById ,getAllRecipe,deleteRecipe };

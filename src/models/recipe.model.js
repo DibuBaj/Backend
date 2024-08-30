@@ -7,12 +7,13 @@ const recipeSchema = new Schema(
             type:String,
             required:true,
         },
-        picture:{
+        image:{
             type:String, //cloudnary url
             required:true
         },
-        pictureId:{
+        imageId:{
             type:String, 
+            required: true
         },
         description:{
             type:String,
@@ -35,16 +36,7 @@ const recipeSchema = new Schema(
             type: Schema.Types.ObjectId,
             ref: 'User',
             required:true
-        },
-        recipeOwnerName:{
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-        },
-        likedBy:{
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-           
-        },
+        }
     },{timestamps: true})
 
 recipeSchema.plugin(mongooseAggregatePaginate)

@@ -10,7 +10,6 @@ import {
   updateAvatarImage,
   getUserProfile,
   deleteUser,
-  getLikedRecipe,
 } from "../controllers/user.controller.js";
 
 import { upload } from "../middlewares/multer.middleware.js";
@@ -31,9 +30,9 @@ router.route("/change-avatar").patch(verifyJWT, upload.single("avatar"), updateA
 
 router.route("/current-user").get(verifyJWT, getCurrentUser);
 
-router.route("/p/:username").get(verifyJWT, getUserProfile);
-router.route("/d/:username").get(verifyJWT,deleteUser)
+router.route("/p/:username").get(getUserProfile);
+router.route("/d").get(verifyJWT,deleteUser)
 
-router.route("/liked-product").get(verifyJWT, getLikedRecipe);
+
 
 export default router;

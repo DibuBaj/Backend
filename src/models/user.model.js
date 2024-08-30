@@ -33,12 +33,6 @@ const userSchema = new Schema(
             type: String,
             required: true,
         },
-        likedRecipe: [
-            {
-                type: Schema.Types.ObjectId,
-                ref: 'Recipe'
-            }
-        ],
         userType:{
             type: String,
             enum: ['admin', 'chef','user'],
